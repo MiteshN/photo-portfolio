@@ -61,21 +61,26 @@ jobs:
           set -euo pipefail
           img=photo-portfolio:test
 
+          # Bash ignores `set -e` inside a function called as `check || …`,
+          # so every assertion returns explicitly.
           check() {
-            local port=$1
-            for _ in $(seq 1 90); do
+            local port=$1 imgpath
+            for _ in $(seq 1 60); do
               if curl -fsS "localhost:$port/healthz" 2>/dev/null | grep -q '"ok":true'; then break; fi
+              if curl -sS "localhost:$port/healthz" 2>/dev/null | grep -q '"lastError":"'; then break; fi
               sleep 2
             done
-            curl -fsS "localhost:$port/healthz"; echo
-            curl -fsS "localhost:$port/" | grep -q 'Photographs'
-            curl -fsS "localhost:$port/albums/coast/" | grep -q 'Coast'
-            curl -fsS "localhost:$port/albums/coast/still-water/" | grep -q 'Sample Camera X1'
-            curl -fsS "localhost:$port/sitemap-index.xml" | grep -q 'photo.mugetsu.xyz'
-            local imgpath
+            curl -sS "localhost:$port/healthz"; echo
+            curl -fsS "localhost:$port/healthz" | grep -q '"ok":true' || { echo "not healthy"; return 1; }
+            curl -fsS "localhost:$port/" | grep -q 'Photographs' || { echo "home page"; return 1; }
+            curl -fsS "localhost:$port/albums/coast/" | grep -q 'Coast' || { echo "album page"; return 1; }
+            curl -fsS "localhost:$port/albums/coast/still-water/" | grep -q 'Sample Camera X1' || { echo "photo page"; return 1; }
+            curl -fsS "localhost:$port/sitemap-index.xml" | grep -q 'photo.mugetsu.xyz' || { echo "sitemap"; return 1; }
             imgpath=$(curl -fsS "localhost:$port/" | grep -oE '/_img/[a-f0-9]{16}-[0-9]+\.webp' | head -1)
-            curl -fsSI "localhost:$port$imgpath" | grep -qi 'content-type: image/webp'
-            test "$(curl -s -o /dev/null -w '%{http_code}' "localhost:$port/nope/")" = 404
+            [ -n "$imgpath" ] || { echo "no image on home page"; return 1; }
+            curl -fsSI "localhost:$port$imgpath" | grep -qi 'content-type: image/webp' || { echo "image"; return 1; }
+            [ "$(curl -s -o /dev/null -w '%{http_code}' "localhost:$port/nope/")" = 404 ] || { echo "404 page"; return 1; }
+            return 0
           }
 
           echo "::group::Default user, anonymous data volume"
@@ -93,7 +98,7 @@ jobs:
           echo "::group::Picks up a new album without a restart"
           mkdir -p /tmp/p3-photos && cp -r sample-photos/* /tmp/p3-photos/
           docker run -d --name p3 -e REBUILD_DEBOUNCE_MS=1000 -p 8083:8080 -v /tmp/p3-photos:/photos:ro "$img"
-          check 8083
+          check 8083 || { docker logs p3; exit 1; }
           mkdir -p "/tmp/p3-photos/09 New album" && cp "sample-photos/03 Fog/into-the-pines.jpg" "/tmp/p3-photos/09 New album/"
           for _ in $(seq 1 60); do
             if curl -fsS localhost:8083/albums/new-album/ >/dev/null 2>&1; then echo "new album is live"; break; fi

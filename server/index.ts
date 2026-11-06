@@ -2,7 +2,7 @@
 // photos folder changes. Run with `node server/index.ts` (Node 24+ runs TypeScript).
 import { type ChildProcess, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readdir, rename, rm, stat } from 'node:fs/promises';
+import { cp, readdir, rename, rm, stat } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import chokidar, { type FSWatcher } from 'chokidar';
@@ -53,9 +53,16 @@ async function rebuild(reason: string): Promise<void> {
       log: (m) => log(`  ${m}`),
     });
 
+    // Astro renders into its own .astro folder and then *moves* files into outDir,
+    // which fails across volumes (EXDEV). So build next to .astro, then copy the
+    // (small: HTML, CSS, JS) result onto the data volume and swap it in there.
+    const buildDir = path.join(paths.root, '.astro', 'site-build');
     const nextDir = path.join(paths.dataDir, 'site-next');
+    await rm(buildDir, { recursive: true, force: true });
+    await runAstroBuild(buildDir);
     await rm(nextDir, { recursive: true, force: true });
-    await runAstroBuild(nextDir);
+    await cp(buildDir, nextDir, { recursive: true });
+    await rm(buildDir, { recursive: true, force: true });
     await swapIn(nextDir, paths.siteDir);
 
     state.fingerprint = fingerprint;
