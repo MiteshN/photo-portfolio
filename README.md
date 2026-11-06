@@ -88,7 +88,7 @@ Point it at real photos with `PHOTOS_DIR`, e.g. `PHOTOS_DIR=//nas/portfolio npm 
 
 ## Deploying to TrueNAS
 
-1. **Publish the image.** Push this repo to GitHub as `photo-portfolio`. On every push to `main`, CI runs the tests, smoke-tests the container (including as the TrueNAS `apps` user) and publishes `ghcr.io/miteshn/photo-portfolio:latest`. The first time, open the package on GitHub (Packages → photo-portfolio → Package settings) and make it **public**, or add registry credentials in TrueNAS.
+1. **The image.** On every push to `main`, CI runs the tests, smoke-tests the container (including as the TrueNAS `apps` user and with the data folder on its own volume), then publishes `ghcr.io/miteshn/photo-portfolio:latest`. The repo is public, so the image is too: TrueNAS can pull it without credentials.
 
 2. **Create two datasets.**
    - **Photos**, e.g. `Pool2/photos/portfolio`: share it over SMB; this is where album folders go.
