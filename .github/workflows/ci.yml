@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Typecheck, tests and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  image:
+    # Pull requests: build the image and smoke-test it. main and v* tags: also publish.
+    name: Docker image
+    needs: [test]
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUBLISH: ${{ github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build for testing
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: photo-portfolio:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test the image
+        run: |
+          set -euo pipefail
+          img=photo-portfolio:test
+
+          check() {
+            local port=$1
+            for _ in $(seq 1 90); do
+              if curl -fsS "localhost:$port/healthz" 2>/dev/null | grep -q '"ok":true'; then break; fi
+              sleep 2
+            done
+            curl -fsS "localhost:$port/healthz"; echo
+            curl -fsS "localhost:$port/" | grep -q 'Photographs'
+            curl -fsS "localhost:$port/albums/coast/" | grep -q 'Coast'
+            curl -fsS "localhost:$port/albums/coast/still-water/" | grep -q 'Sample Camera X1'
+            curl -fsS "localhost:$port/sitemap-index.xml" | grep -q 'photo.mugetsu.xyz'
+            local imgpath
+            imgpath=$(curl -fsS "localhost:$port/" | grep -oE '/_img/[a-f0-9]{16}-[0-9]+\.webp' | head -1)
+            curl -fsSI "localhost:$port$imgpath" | grep -qi 'content-type: image/webp'
+            test "$(curl -s -o /dev/null -w '%{http_code}' "localhost:$port/nope/")" = 404
+          }
+
+          echo "::group::Default user, anonymous data volume"
+          docker run -d --name p1 -p 8081:8080 -v "$PWD/sample-photos:/photos:ro" "$img"
+          check 8081 || { docker logs p1; exit 1; }
+          docker logs p1
+          echo "::endgroup::"
+
+          echo "::group::TrueNAS apps user (568) with a bind-mounted data folder"
+          mkdir -p /tmp/p2-data && chmod 777 /tmp/p2-data
+          docker run -d --name p2 --user 568:568 -p 8082:8080 -v "$PWD/sample-photos:/photos:ro" -v /tmp/p2-data:/data "$img"
+          check 8082 || { docker logs p2; exit 1; }
+          echo "::endgroup::"
+
+          echo "::group::Picks up a new album without a restart"
+          mkdir -p /tmp/p3-photos && cp -r sample-photos/* /tmp/p3-photos/
+          docker run -d --name p3 -e REBUILD_DEBOUNCE_MS=1000 -p 8083:8080 -v /tmp/p3-photos:/photos:ro "$img"
+          check 8083
+          mkdir -p "/tmp/p3-photos/09 New album" && cp "sample-photos/03 Fog/into-the-pines.jpg" "/tmp/p3-photos/09 New album/"
+          for _ in $(seq 1 60); do
+            if curl -fsS localhost:8083/albums/new-album/ >/dev/null 2>&1; then echo "new album is live"; break; fi
+            sleep 2
+          done
+          curl -fsS localhost:8083/albums/new-album/ | grep -q 'New album' || { docker logs p3; exit 1; }
+          echo "::endgroup::"
+
+          docker rm -f p1 p2 p3
+
+      - name: Log in to GitHub Container Registry
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: env.PUBLISH == 'true'
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Publish
+        if: env.PUBLISH == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha

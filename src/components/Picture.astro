@@ -1,0 +1,43 @@
+---
+import type { Photo } from '../lib/types.ts';
+
+interface Props {
+  photo: Photo;
+  /** The `sizes` attribute: how wide the image is drawn at each screen size. */
+  sizes: string;
+  /** Load right away (the main image of a page) instead of when scrolled near. */
+  eager?: boolean;
+  alt?: string;
+  class?: string;
+}
+
+const { photo, sizes, eager = false, alt, class: className } = Astro.props;
+const largest = photo.variants[photo.variants.length - 1];
+const avifSet = photo.variants.map((v) => `${v.avif} ${v.width}w`).join(', ');
+const webpSet = photo.variants.map((v) => `${v.webp} ${v.width}w`).join(', ');
+---
+
+<picture class={className}>
+  <source type="image/avif" srcset={avifSet} sizes={sizes} />
+  <img
+    src={largest.webp}
+    srcset={webpSet}
+    sizes={sizes}
+    width={photo.width}
+    height={photo.height}
+    alt={alt ?? photo.title}
+    loading={eager ? 'eager' : 'lazy'}
+    decoding="async"
+    fetchpriority={eager ? 'high' : undefined}
+    style={`background-color: ${photo.color}`}
+  />
+</picture>
+
+<style>
+  picture,
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+</style>

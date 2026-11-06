@@ -1,0 +1,68 @@
+---
+import type { SiteConfig } from '../lib/types.ts';
+
+interface Props {
+  site: SiteConfig;
+}
+
+const { site } = Astro.props;
+---
+
+<header class="site-header">
+  <a class="brand" href="/" aria-label={`${site.title}, home`}>
+    <span class="mark" aria-hidden="true">無月</span>
+    <span class="name">{site.title}</span>
+  </a>
+  <nav aria-label="Main">
+    <a href="/#work">Work</a>
+    <a href="/#albums">Albums</a>
+    <a href="/#about">About</a>
+  </nav>
+</header>
+
+<style>
+  .site-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px 24px;
+    padding: 24px var(--gutter);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 14px;
+    min-height: 44px;
+    padding-block: 6px;
+  }
+
+  .mark {
+    font-family: var(--font-mark);
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .name {
+    font-size: 13px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 28px;
+    font-size: 13px;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+
+  nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+</style>

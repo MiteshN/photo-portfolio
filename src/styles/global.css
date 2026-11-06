@@ -1,0 +1,136 @@
+/* Moonless: design tokens and page basics. Components keep their own scoped styles. */
+
+@font-face {
+  /* Only the two glyphs 無月 (Noto Serif JP, SIL OFL; see assets/fonts). */
+  font-family: 'Mugetsu Mark';
+  src: url('../assets/fonts/mugetsu-mark.woff2') format('woff2');
+  font-weight: 500;
+  font-display: block;
+  unicode-range: U+6708, U+7121;
+}
+
+:root {
+  --bg: #0b0c10;
+  --fg: #e9ecf2;
+  --fg-soft: #c3c8d4;
+  --muted: #8a90a0;
+  --line: #1d2029;
+  --dim: #3a3f4c;
+  --accent: #a9b8ff;
+
+  --font-display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
+  --font-body: 'Space Grotesk Variable', 'Space Grotesk', system-ui, sans-serif;
+  --font-mark: 'Mugetsu Mark', 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+
+  --page-max: 1360px;
+  --gutter: clamp(20px, 3vw, 40px);
+  --tracking-label: 0.16em;
+
+  color-scheme: dark;
+}
+
+/* Smooth cross-page fades in browsers that support it; no JavaScript needed. */
+@view-transition {
+  navigation: auto;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+img {
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+p,
+figure,
+dl,
+dd {
+  margin: 0;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--page-max);
+  margin-inline: auto;
+}
+
+.label {
+  font-size: 13px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip {
+  position: absolute;
+  left: var(--gutter);
+  top: -100px;
+  z-index: 10;
+  padding: 10px 16px;
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.skip:focus {
+  top: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

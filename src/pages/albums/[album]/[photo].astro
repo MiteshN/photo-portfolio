@@ -1,0 +1,254 @@
+---
+import PhotoKeys from '../../../components/PhotoKeys.tsx';
+import Picture from '../../../components/Picture.astro';
+import Base from '../../../layouts/Base.astro';
+import { exifRows } from '../../../lib/exif.ts';
+import { albumUrl, loadLibrary, photoUrl } from '../../../lib/manifest.ts';
+import type { Album, Photo } from '../../../lib/types.ts';
+
+export function getStaticPaths() {
+  return loadLibrary().albums.flatMap((album) =>
+    album.photos.map((photo, index) => ({
+      params: { album: album.slug, photo: photo.slug },
+      props: { album, photo, index, prev: album.photos[index - 1], next: album.photos[index + 1] },
+    })),
+  );
+}
+
+interface Props {
+  album: Album;
+  photo: Photo;
+  index: number;
+  prev?: Photo;
+  next?: Photo;
+}
+
+const { album, photo, index, prev, next } = Astro.props;
+const rows = exifRows(photo.exif);
+const pad = (n: number) => String(n).padStart(2, '0');
+const prevUrl = prev && photoUrl(prev);
+const nextUrl = next && photoUrl(next);
+const backUrl = albumUrl(album);
+const sizes =
+  photo.orientation === 'portrait'
+    ? '(max-width: 900px) 100vw, 50vw'
+    : '(max-width: 1440px) 100vw, 1440px';
+---
+
+<Base title={photo.title} description={photo.caption ?? `${photo.title}, from ${album.title}.`} image={photo.og}>
+  <article class:list={['viewer', photo.orientation]}>
+    <figure class="frame" data-swipe>
+      <Picture photo={photo} sizes={sizes} eager />
+    </figure>
+
+    <div class="details">
+      <nav class="crumbs label" aria-label="Breadcrumb">
+        <a href={backUrl}>← {album.title}</a>
+        <span>{index + 1} / {album.photos.length}</span>
+      </nav>
+
+      <div class="text">
+        <p class="kicker">No. {pad(index + 1)} · {album.title}</p>
+        <h1>{photo.title}</h1>
+        {photo.caption && <p class="caption">{photo.caption}</p>}
+      </div>
+
+      {
+        rows.length > 0 && (
+          <dl class="exif">
+            {rows.map((row) => (
+              <div>
+                <dt>{row.label}</dt>
+                <span class="leader" aria-hidden="true" />
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )
+      }
+
+      <nav class="pager label" aria-label="More photos">
+        {
+          prev ? (
+            <a href={prevUrl} rel="prev" data-astro-prefetch>
+              ← <span class="dim">No. {pad(index)}</span> {prev.title}
+            </a>
+          ) : (
+            <span />
+          )
+        }
+        {
+          next ? (
+            <a href={nextUrl} rel="next" data-astro-prefetch="load">
+              <span class="dim">No. {pad(index + 2)}</span> {next.title} →
+            </a>
+          ) : (
+            <a href={backUrl}>Back to {album.title} →</a>
+          )
+        }
+      </nav>
+    </div>
+  </article>
+
+  <PhotoKeys client:load prev={prevUrl} next={nextUrl} back={backUrl} />
+</Base>
+
+<style>
+  .viewer {
+    display: grid;
+    gap: 40px 64px;
+    padding: 8px var(--gutter) 88px;
+    max-width: 1600px;
+    margin-inline: auto;
+  }
+
+  .frame :global(img) {
+    max-height: calc(100vh - 140px);
+    object-fit: contain;
+    background: none !important;
+  }
+
+  /* Tall photos: picture on the left, details on the right. */
+  .viewer.portrait {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.85fr);
+    align-items: stretch;
+  }
+
+  .viewer.portrait .frame :global(img) {
+    width: auto;
+    margin-left: auto;
+  }
+
+  /* Wide and square photos: picture across the top, details below. */
+  .viewer.landscape,
+  .viewer.square {
+    grid-template-columns: 1fr;
+  }
+
+  .viewer.landscape .frame :global(img),
+  .viewer.square .frame :global(img) {
+    width: auto;
+    margin-inline: auto;
+  }
+
+  .details {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 32px;
+    min-width: 0;
+  }
+
+  .viewer.landscape .details,
+  .viewer.square .details {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 32px 64px;
+    max-width: var(--page-max);
+    width: 100%;
+    margin-inline: auto;
+  }
+
+  .viewer.landscape .crumbs,
+  .viewer.square .crumbs,
+  .viewer.landscape .pager,
+  .viewer.square .pager {
+    grid-column: 1 / -1;
+  }
+
+  .crumbs,
+  .pager {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .crumbs a,
+  .pager a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+  }
+
+  .pager {
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    color: var(--fg);
+  }
+
+  .dim {
+    color: var(--muted);
+  }
+
+  .text {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .kicker {
+    font-size: 13px;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(56px, 7vw, 112px);
+    line-height: 0.92;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+
+  .caption {
+    max-width: 520px;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--fg-soft);
+  }
+
+  .exif {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 560px;
+    font-size: 14px;
+  }
+
+  .exif div {
+    display: flex;
+    align-items: baseline;
+  }
+
+  .exif dt {
+    color: var(--muted);
+  }
+
+  .leader {
+    flex: 1;
+    min-width: 24px;
+    margin: 0 12px;
+    border-bottom: 1px dotted var(--dim);
+  }
+
+  @media (max-width: 900px) {
+    .viewer.portrait,
+    .viewer.landscape .details,
+    .viewer.square .details {
+      grid-template-columns: 1fr;
+    }
+
+    .viewer.portrait .frame :global(img) {
+      margin-inline: auto;
+    }
+
+    .frame :global(img) {
+      max-height: 80vh;
+    }
+  }
+</style>

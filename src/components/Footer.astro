@@ -1,0 +1,98 @@
+---
+import type { SiteConfig } from '../lib/types.ts';
+
+interface Props {
+  site: SiteConfig;
+}
+
+const { site } = Astro.props;
+const host = Astro.site?.host;
+const year = new Date().getFullYear();
+const instagram = site.instagram.replace(/^@/, '');
+---
+
+<footer id="about" class="site-footer">
+  <div class="container">
+    <div class="top">
+      <p class="big-mark" aria-hidden="true">無月</p>
+      <p class="note">無月 (mugetsu): a moon hidden behind clouds.</p>
+    </div>
+    <div class="bottom label">
+      <div class="links">
+        {
+          instagram && (
+            <a href={`https://instagram.com/${encodeURIComponent(instagram)}`} rel="me noopener">
+              Instagram @{instagram}
+            </a>
+          )
+        }
+        {site.email && <a href={`mailto:${site.email}`}>Email {site.email}</a>}
+      </div>
+      <span>
+        © {year}
+        {site.author || site.title}
+        {host && ` · ${host}`}
+      </span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    padding: 64px var(--gutter) 40px;
+    overflow: hidden;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+  }
+
+  .big-mark {
+    font-family: var(--font-mark);
+    font-weight: 500;
+    font-size: clamp(140px, 20vw, 300px);
+    line-height: 0.9;
+    color: rgb(233 236 242 / 0.07);
+    user-select: none;
+  }
+
+  .note {
+    max-width: 340px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .bottom {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 16px;
+    border-top: 1px solid var(--line);
+    padding-top: 24px;
+    letter-spacing: 0.12em;
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+  }
+
+  .links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-block: -12px;
+  }
+</style>

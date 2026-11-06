@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Not found">
+  <section class="missing">
+    <div class="container">
+      <p class="label">404</p>
+      <h1>Behind the clouds</h1>
+      <p class="text">There's nothing at this address. It may have been moved or renamed.</p>
+      <a class="label home" href="/">← Back to the photos</a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .missing {
+    padding: clamp(48px, 10vw, 160px) var(--gutter);
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(56px, 10vw, 160px);
+    line-height: 0.92;
+    text-transform: uppercase;
+  }
+
+  .text {
+    max-width: 480px;
+    font-size: 17px;
+    color: var(--fg-soft);
+  }
+
+  .home {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--fg);
+  }
+</style>

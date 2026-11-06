@@ -1,0 +1,130 @@
+---
+import AlbumIndex from '../components/AlbumIndex.astro';
+import PhotoGrid from '../components/PhotoGrid.astro';
+import Picture from '../components/Picture.astro';
+import Base from '../layouts/Base.astro';
+import { headlinePhoto, homePhotos, loadLibrary } from '../lib/manifest.ts';
+import type { Photo } from '../lib/types.ts';
+
+const library = loadLibrary();
+const { site, albums } = library;
+const photos = homePhotos(library);
+const pill = headlinePhoto(photos);
+const albumTitle = new Map(albums.map((a) => [a.slug, a.title]));
+const meta = (p: Photo) => [albumTitle.get(p.albumSlug), p.exif.takenAt?.slice(0, 4)].filter(Boolean).join(' · ');
+const byline = [site.author, site.location].filter(Boolean).join(' — ');
+---
+
+<Base image={pill?.og}>
+  <section class="hero">
+    <div class="container">
+      <h1>
+        Photographs
+        {
+          pill && (
+            <span class="pill">
+              <Picture photo={pill} sizes="320px" eager alt="" />
+            </span>
+          )
+        }
+        <br />
+        by <em>{site.title}</em>
+      </h1>
+      {
+        (byline || site.intro) && (
+          <div class="hero-meta">
+            {byline && <p class="label">{byline}</p>}
+            {site.intro && <p class="intro">{site.intro}</p>}
+          </div>
+        )
+      }
+    </div>
+  </section>
+
+  <section id="work" class="work" aria-label="Latest work">
+    <div class="container">
+      {
+        photos.length > 0 ? (
+          <PhotoGrid photos={photos} meta={meta} eagerFirstRow />
+        ) : (
+          <div class="empty">
+            <p class="label">No photos yet</p>
+            <p>Add a folder of JPEGs to the portfolio share and the site will update itself.</p>
+          </div>
+        )
+      }
+    </div>
+  </section>
+
+  {albums.length > 0 && <AlbumIndex albums={albums} />}
+</Base>
+
+<style>
+  .hero {
+    padding: clamp(24px, 4vw, 48px) var(--gutter) clamp(56px, 7vw, 88px);
+  }
+
+  .hero .container {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(60px, 9.6vw, 152px);
+    line-height: 0.94;
+    text-transform: uppercase;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .pill {
+    display: inline-block;
+    width: 2.3em;
+    height: 0.74em;
+    border-radius: 999px;
+    overflow: hidden;
+    vertical-align: -0.02em;
+  }
+
+  .pill :global(picture),
+  .pill :global(img) {
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px 40px;
+    border-top: 1px solid var(--line);
+    padding-top: 24px;
+  }
+
+  .intro {
+    flex: 0 1 480px;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--fg-soft);
+  }
+
+  .work {
+    padding: 0 var(--gutter) clamp(72px, 9vw, 120px);
+  }
+
+  .empty {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 520px;
+    padding: 48px 0;
+    color: var(--fg-soft);
+  }
+</style>

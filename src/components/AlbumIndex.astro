@@ -1,0 +1,80 @@
+---
+import { albumUrl } from '../lib/manifest.ts';
+import type { Album } from '../lib/types.ts';
+
+interface Props {
+  albums: Album[];
+  /** Slug of the album being viewed, shown as current. */
+  current?: string;
+}
+
+const { albums, current } = Astro.props;
+---
+
+<section id="albums" class="albums" aria-labelledby="albums-heading">
+  <div class="container">
+    <h2 id="albums-heading" class="label">Albums</h2>
+    <ul>
+      {
+        albums.map((album) => (
+          <li>
+            <a href={albumUrl(album)} data-astro-prefetch aria-current={album.slug === current ? 'page' : undefined}>
+              {album.title}
+              <sup>{album.photos.length}</sup>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .albums {
+    padding: 56px var(--gutter);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  h2 {
+    font-weight: 400;
+  }
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 28px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--font-display);
+    font-size: clamp(36px, 4.4vw, 56px);
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  li:not(:last-child)::after {
+    content: '/';
+    margin-left: 28px;
+    color: var(--dim);
+  }
+
+  a[aria-current='page'] {
+    color: var(--accent);
+  }
+
+  sup {
+    margin-left: 4px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+</style>

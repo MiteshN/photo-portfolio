@@ -1,0 +1,110 @@
+---
+import AlbumIndex from '../../../components/AlbumIndex.astro';
+import PhotoGrid from '../../../components/PhotoGrid.astro';
+import Base from '../../../layouts/Base.astro';
+import { formatDate, formatMonth } from '../../../lib/exif.ts';
+import { albumUrl, coverOf, loadLibrary, yearSpan } from '../../../lib/manifest.ts';
+import type { Album, Photo } from '../../../lib/types.ts';
+
+export function getStaticPaths() {
+  const { albums } = loadLibrary();
+  return albums.map((album, i) => ({
+    params: { album: album.slug },
+    props: { album, next: albums[(i + 1) % albums.length] },
+  }));
+}
+
+interface Props {
+  album: Album;
+  next: Album;
+}
+
+const { album, next } = Astro.props;
+const { albums } = loadLibrary();
+const count = `${album.photos.length} photo${album.photos.length === 1 ? '' : 's'}`;
+const range = album.dateRange
+  ? album.dateRange[0] === album.dateRange[1]
+    ? formatDate(album.dateRange[0])
+    : `${formatMonth(album.dateRange[0])} – ${formatMonth(album.dateRange[1])}`
+  : yearSpan(album);
+const meta = (p: Photo) => (p.exif.takenAt ? formatDate(p.exif.takenAt) : undefined);
+---
+
+<Base title={album.title} description={album.description} image={coverOf(album).og}>
+  <section class="head">
+    <div class="container">
+      <p class="label">Album · {count}{range && ` · ${range}`}</p>
+      <h1>{album.title}</h1>
+      {album.description && <p class="description">{album.description}</p>}
+    </div>
+  </section>
+
+  <section class="photos" aria-label={`Photos in ${album.title}`}>
+    <div class="container">
+      <PhotoGrid photos={album.photos} meta={meta} eagerFirstRow />
+    </div>
+  </section>
+
+  {
+    next.slug !== album.slug && (
+      <nav class="next" aria-label="Next album">
+        <div class="container">
+          <a href={albumUrl(next)} data-astro-prefetch>
+            <span class="label">Next album</span>
+            <span class="next-title">{next.title} →</span>
+          </a>
+        </div>
+      </nav>
+    )
+  }
+
+  <AlbumIndex albums={albums} current={album.slug} />
+</Base>
+
+<style>
+  .head {
+    padding: clamp(24px, 4vw, 48px) var(--gutter) clamp(48px, 6vw, 80px);
+  }
+
+  .head .container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(64px, 11vw, 176px);
+    line-height: 0.9;
+    text-transform: uppercase;
+  }
+
+  .description {
+    max-width: 560px;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--fg-soft);
+  }
+
+  .photos {
+    padding: 0 var(--gutter) clamp(72px, 9vw, 120px);
+  }
+
+  .next {
+    padding: 0 var(--gutter) 72px;
+  }
+
+  .next a {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .next-title {
+    font-family: var(--font-display);
+    font-size: clamp(40px, 6vw, 80px);
+    line-height: 1;
+    text-transform: uppercase;
+  }
+</style>

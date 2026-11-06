@@ -1,0 +1,20 @@
+# TrueNAS: Apps > Discover Apps > ⋮ > Install via YAML, then paste this.
+# Change the two host paths on the left of the volume lines to your datasets.
+services:
+  photo-portfolio:
+    image: ghcr.io/miteshn/photo-portfolio:latest
+    container_name: photo-portfolio
+    restart: unless-stopped
+    # TrueNAS's built-in "apps" user. It needs read access to the photos dataset
+    # and write access to the data dataset (see README, "Dataset permissions").
+    user: "568:568"
+    ports:
+      - "30880:8080"
+    environment:
+      SITE_URL: https://photo.mugetsu.xyz
+      # WATCH_MODE: polling   # only if new photos aren't picked up (e.g. NFS mounts)
+    volumes:
+      # Album folders go here; mounted read-only so the site can never change your photos.
+      - /mnt/Pool2/photos/portfolio:/photos:ro
+      # Resized images, the manifest and the built site. Safe to delete; it rebuilds.
+      - /mnt/Pool2/apps/photo-portfolio:/data
